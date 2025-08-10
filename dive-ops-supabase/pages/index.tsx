@@ -1,4 +1,5 @@
 
+
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
@@ -17,20 +18,8 @@ export default function Home({ session }: { session:any }){
   const [cylinders,setCylinders]=useState<Cyl[]>([])
   const [items,setItems]=useState<Item[]>([])
   const [log,setLog]=useState<{ts:string,kind:string,detail:string}[]>([])
-  const [loading,setLoading]=useState(true)
-
-  useEffect(()=>{
-    if(!session){ setLoading(false); return }
-    ;(async()=>{
-      se
-        tLoading(true)
-      const { data: cyls } = await supabase.from('cylinders').select('*').order('created_at',{ascending:false})
-      const { data: it } = await supabase.from('rental_items').select('id,type,size,serial,status').order('created_at',{ascending:false})
-      setCylinders((cyls||[]) as any)
-      setItems((it||[]) as any)
-      setLoading(false)
-    })()
-  },[session])
+  const [loading,setLoading]=useState(true)   )
+  
 
   function logEvent(kind:string, detail:string){ setLog(e=>[{ts:new Date().toLocaleString(), kind, detail}, ...e].slice(0,200)) }
 
@@ -55,7 +44,8 @@ export default function Home({ session }: { session:any }){
     const post = Math.max(0, Math.round(Math.random()*80))
     await supabase.from('cylinders').update({ status:'available' }).eq('id', id)
     await supabase.from('cylinder_events').insert({ cylinder_id:id, type:'return', payload:{ post_bar:post } })
-    setCylinders(cylinders.map(c=>c.id===id?{...c,status:'available'}:c))
+    setCylinders(cylinders.map(c=>c.id===id?{
+      ...c,status:'available'}:c))
     logEvent('cylinder.return','Returned cylinder')
   }
 
@@ -90,12 +80,14 @@ export default function Home({ session }: { session:any }){
     )
   }
 
-  return (
+  retu
+    rn (
     <div className="container">
      
           <a className="btn" href="/scan">Scan cylinders in/out</a>
               <div className="header">
         <div className="tabs">
+   
           <Tab active={tab==='rental'} onClick={()=>setTab('rental')}>Rental Desk</Tab>
           <Tab active={tab==='cylinders'} onClick={()=>setTab('cylinders')}>Cylinders</Tab>
           <Tab active={tab==='log'} onClick={()=>setTab('log')}>Event Log</Tab>
@@ -125,10 +117,12 @@ export default function Home({ session }: { session:any }){
             <div className="grid2">
               {groups.out.map((r:Item)=>(
                 <div className="card" key={'o'+r.id}>
+    
                   <div>
                     <div><b>{r.type}</b> {r.size?`(${r.size})`:''}</div>
                     <div className="small">Serial {r.serial ?? '(bulk)'} • Status out</div>
                   </div>
+           
                   <div style={{display:'flex',gap:8}}>
                     <button className="btn blue" onClick={()=>checkinItem(r.id,false)}>Check-in</button>
                     <button className="btn red" onClick={()=>checkinItem(r.id,true)}>Damaged</button>
@@ -160,9 +154,11 @@ export default function Home({ session }: { session:any }){
                 <div>
                   <div><b>{c.label || `${c.size_l}L ${c.material} ${c.wp_bar}`}</b></div>
                   <div className="small">VIP {c.vip_due} • Hydro {c.hydro_due}</div>
-                </div>
+                </
+                div>
                 <div style={{display:'flex',gap:8}}>
-                  {vipOver && <Badge tone='red'>VIP overdue</Badge>}
+                  {
+                  vipOver && <Badge tone='red'>VIP overdue</Badge>}
                   {hydroOver && <Badge tone='red'>Hydro overdue</Badge>}
                   <Badge tone={c.status==='available'?'green':'gray'}>{c.status}</Badge>
                   <button className="btn" onClick={()=>cylFill(c.id)}>Fill</button>
@@ -186,7 +182,9 @@ export default function Home({ session }: { session:any }){
         </div>
       )}
 
-      <div className="footer">Hooked to Supabase — ensure RLS allows authenticated (it does). Sign in via magic link.</div>
+  
     </div>
   )
 }
+
+        
