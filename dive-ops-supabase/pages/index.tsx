@@ -18,8 +18,27 @@ export default function Home({ session }: { session:any }){
   const [cylinders,setCylinders]=useState<Cyl[]>([])
   const [items,setItems]=useState<Item[]>([])
   const [log,setLog]=useState<{ts:string,kind:string,detail:string}[]>([])
-  const [loading,setLoading]=useState(true)   )
-  
+  const [loading,setLoading]=useState(true)
+    useEffect(() => {
+    if (!session) { setLoading(false); return }
+    ;(async () => {
+      setLoading(true)
+      const { data: cyls } = await supabase
+        .from('cylinders')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      const { data: it } = await supabase
+        .from('rental_items')
+        .select('id,type,size,serial,status')
+        .order('created_at', { ascending: false })
+
+      setCylinders((cyls || []) as any)
+      setItems((it || []) as any)
+      setLoading(false)
+    })()
+  }, [session])
+
   
 
   function logEvent(kind:string, detail:string){ setLog(e=>[{ts:new Date().toLocaleString(), kind, detail}, ...e].slice(0,200)) }
