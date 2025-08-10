@@ -22,7 +22,8 @@ export default function Home({ session }: { session:any }){
   useEffect(()=>{
     if(!session){ setLoading(false); return }
     ;(async()=>{
-      setLoading(true)
+      se
+        tLoading(true)
       const { data: cyls } = await supabase.from('cylinders').select('*').order('created_at',{ascending:false})
       const { data: it } = await supabase.from('rental_items').select('id,type,size,serial,status').order('created_at',{ascending:false})
       setCylinders((cyls||[]) as any)
@@ -91,7 +92,9 @@ export default function Home({ session }: { session:any }){
 
   return (
     <div className="container">
-      <div className="header">
+     
+          <a className="btn" href="/scan">Scan cylinders in/out</a>
+              <div className="header">
         <div className="tabs">
           <Tab active={tab==='rental'} onClick={()=>setTab('rental')}>Rental Desk</Tab>
           <Tab active={tab==='cylinders'} onClick={()=>setTab('cylinders')}>Cylinders</Tab>
