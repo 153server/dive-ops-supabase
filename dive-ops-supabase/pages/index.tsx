@@ -101,8 +101,7 @@ export default function Home({ session }: { session:any }){
     )
   }
 
-  retu
-    rn (
+  return (
     <div className="container">
      
           <a className="btn" href="/scan">Scan cylinders in/out</a>
