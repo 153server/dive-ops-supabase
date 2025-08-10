@@ -19,6 +19,7 @@ export default function Home({ session }: { session:any }){
   const [items,setItems]=useState<Item[]>([])
   const [log,setLog]=useState<{ts:string,kind:string,detail:string}[]>([])
   const [loading,setLoading]=useState(true)
+  
     useEffect(() => {
     if (!session) { setLoading(false); return }
     ;(async () => {
