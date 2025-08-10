@@ -20,6 +20,7 @@ export default function Home({ session }: { session:any }){
   const [log,setLog]=useState<{ts:string,kind:string,detail:string}[]>([])
   const [loading,setLoading]=useState(true)   )
   
+  
 
   function logEvent(kind:string, detail:string){ setLog(e=>[{ts:new Date().toLocaleString(), kind, detail}, ...e].slice(0,200)) }
 
