@@ -60,6 +60,7 @@ export default function Scan(){
     setDetected(code);
     // Try interpret: CYL:<uuid> or RIT:<uuid>
     let type = null, id = null;
+       
     if(code.startsWith('CYL:')){ type='cylinder'; id = code.slice(4); }
     if(code.startsWith('RIT:')){ type='rental'; id = code.slice(4); }
     if(!type){ setLookup({ error:'Unknown code format' }); return; }
@@ -75,6 +76,18 @@ export default function Scan(){
           const { data: list } = await supabase.from('cylinders').select('*').order('created_at',{ascending:true});
           if(list && list[idx]) data = list[idx];
         }
+         // toggle status for cylinder
+      if(data){
+        const newStatus = data.status === 'available' ? 'out' : 'available';
+        const { error: updateError } = await supabase
+          .from('cylinders')
+          .update({ status: newStatus })
+          .eq('id', data.id);
+        if(!updateError){
+          data.status = newStatus;
+        }
+      }
+
       }
       setLookup({ type, data, error });
     } else {
