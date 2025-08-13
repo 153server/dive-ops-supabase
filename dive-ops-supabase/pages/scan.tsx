@@ -48,7 +48,7 @@ const submitCheckIn = async () => {
   </div>
 )}
   setSelectedDiver(null);
-  setEquipmentStatus({});
+  setEquipmentStatus({
     BCD: { status: '', remark: '' },
     Regulator: { status: '', remark: '' },
     Fin: { status: '', remark: '' },
