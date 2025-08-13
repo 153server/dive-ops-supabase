@@ -1,5 +1,5 @@
 import type { AppProps } from 'next/app';
-import { useEffect } from 'react'; // Added useEffect import
+import { useEffect } from 'react';
 
 // Minimal global styles
 const globalStyles = `
@@ -57,14 +57,6 @@ const globalStyles = `
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     padding: 24px;
     margin: 20px 0;
-  }
-
-  .loading-screen {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background-color: var(--background);
   }
 `;
 
