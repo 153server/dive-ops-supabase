@@ -33,14 +33,13 @@ useEffect(() => {
 
 // 更新 submitCheckIn 函数 - 移除 Supabase 调用
 const submitCheckIn = async () => {
- +   if (!selectedDiver) return;
-+   
-+   // 模拟提交成功
-+   console.log('Check-in submitted for:', selectedDiver);
-+   setSuccessMessage('Check-in successful!');
-+   setSelectedDiver(null);
-+   setEquipmentStatus({});
-};
+  if (!selectedDiver) return;
+  
+  // 模拟提交成功
+  console.log('Check-in submitted for:', selectedDiver);
+  setSuccessMessage('Check-in successful!');
+  setSelectedDiver(null);
+  setEquipmentStatus({});
     BCD: { status: '', remark: '' },
     Regulator: { status: '', remark: '' },
     Fin: { status: '', remark: '' },
