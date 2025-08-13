@@ -7,8 +7,9 @@ interface LayoutProps {
   children: ReactNode;
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const router = useRouter();
+export default function Layout({ children }: { children: ReactNode }) {
+  return <div>{children}</div>;
+}
   
   const signOut = () => {
     // 模拟退出功能
