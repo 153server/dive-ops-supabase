@@ -13,7 +13,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   
   const signOut = () => {
     // 模拟退出功能
-    router.push('/login');Now router is defined
+    router.push('/login');
   };
 
   const isActive = (pathname: string) => {
