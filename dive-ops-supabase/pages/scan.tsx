@@ -1,134 +1,171 @@
-// 在 equipment-scanner 页面中
-import { useState } from 'react';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import { useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 
-export default function EquipmentScanner() {
-  const supabase = useSupabaseClient();
-  const [divers, setDivers] = useState([]);
-  const [selectedDiver, setSelectedDiver] = useState(null);
-  const [equipmentStatus, setEquipmentStatus] = useState({
-    BCD: { status: '', remark: '' },
-    Regulator: { status: '', remark: '' },
-    Fin: { status: '', remark: '' },
-    Goggle: { status: '', remark: '' }
-  });
+type Cyl = { id:string; label?:string|null; status:string }
 
-  // 加载潜水员列表
+export default function ScanPage() {
+  const [scanActive, setScanActive] = useState(false)
+  const [scanError, setScanError] = useState<string>('')
+  const [scanMessage, setScanMessage] = useState<string>('')
+  const [manualCode, setManualCode] = useState<string>('')
+
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const rafIdRef = useRef<number | null>(null)
+  const zxingControlsRef = useRef<{ stop: () => void } | null>(null)
+  const lastCodeRef = useRef<string>('')
+
   useEffect(() => {
-    const fetchDivers = async () => {
-      const { data, error } = await supabase
-        .from('divers')
-        .select('*');
-      
-      if (!error) setDivers(data);
-    };
-    fetchDivers();
-  }, []);
+    return () => { stopScan(true) } // cleanup on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  // 更新设备状态
-  const updateEquipmentStatus = (type, field, value) => {
-    setEquipmentStatus(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        [field]: value
+  async function startScan() {
+    setScanError('')
+    setScanMessage('')
+
+    const el = videoRef.current
+    if (!el) { setScanError('Video element not ready'); return }
+
+    // iOS friendly video attributes
+    el.setAttribute('playsinline','true')
+    el.muted = true
+    el.autoplay = true
+
+    // Fast path: native BarcodeDetector (Chrome/Android)
+    if ('BarcodeDetector' in window) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
+        })
+        el.srcObject = stream
+        await el.play()
+
+        // @ts-ignore - BarcodeDetector exists at runtime in supported browsers
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+        setScanActive(true)
+
+        const loop = async () => {
+          try {
+            const codes = await detector.detect(el)
+            if (codes?.length) {
+              const code = codes[0].rawValue || ''
+              if (code && code !== lastCodeRef.current) {
+                lastCodeRef.current = code
+                await handleScanCode(code)
+              }
+            }
+          } catch { /* ignore frame errors */ }
+          if (scanActive) rafIdRef.current = requestAnimationFrame(loop)
+        }
+        rafIdRef.current = requestAnimationFrame(loop)
+        return
+      } catch (e:any) {
+        console.warn('BarcodeDetector failed, falling back to ZXing:', e?.message)
+        await stopScan(true) // clear any half-open resources, then fall through
       }
-    }));
-  };
-
-  // 提交检查结果
-  const submitCheckIn = async () => {
-    const { error } = await supabase
-      .from('equipment_checkins')
-      .insert({
-        diver_id: selectedDiver.id,
-        equipment_data: equipmentStatus,
-        checked_at: new Date().toISOString()
-      });
-    
-    if (!error) {
-      alert('设备检查完成！');
-      setSelectedDiver(null);
-      setEquipmentStatus({ /* 重置状态 */ });
     }
-  };
+
+    // Fallback: ZXing (works on iOS Safari)
+    try {
+      const reader = new BrowserMultiFormatReader()
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices()
+      if (!devices.length) { setScanError('No camera found'); return }
+      const deviceId = devices[0].deviceId
+
+      const controls = await reader.decodeFromVideoDevice(deviceId, el, async (result, err) => {
+        if (result) {
+          const text = result.getText()
+          if (text && text !== lastCodeRef.current) {
+            lastCodeRef.current = text
+            await handleScanCode(text)
+          }
+        }
+        // ignore transient decode errors
+      })
+
+      zxingControlsRef.current = controls
+      setScanActive(true)
+    } catch (e:any) {
+      setScanError(e?.message || 'Camera error')
+    }
+  }
+
+  async function stopScan(keepLast=false) {
+    setScanActive(false)
+
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
+    }
+    if (zxingControlsRef.current) {
+      try { zxingControlsRef.current.stop() } catch {}
+      zxingControlsRef.current = null
+    }
+    const el = videoRef.current
+    const stream = el?.srcObject as MediaStream | null
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop())
+      if (el) el.srcObject = null
+    }
+    if (!keepLast) lastCodeRef.current = ''
+  }
+
+  async function handleScanCode(raw: string) {
+    setScanError('')
+    setScanMessage('')
+
+    // Expect "CYL:<uuid>"
+    const [prefix, id] = raw.trim().split(':')
+    if (prefix !== 'CYL' || !id) {
+      setScanError('Invalid code. Use CYL:<uuid>')
+      return
+    }
+
+    // Lookup cylinder
+    const { data: cyl, error: getErr } = await supabase
+      .from('cylinders')
+      .select('id,label,status')
+      .eq('id', id)
+      .maybeSingle<Cyl>()
+    if (getErr) { setScanError(getErr.message); return }
+    if (!cyl) { setScanError('Cylinder not found'); return }
+
+    // Toggle status
+    const newStatus = cyl.status === 'available' ? 'out' : 'available'
+    const { error: updErr } = await supabase
+      .from('cylinders')
+      .update({ status: newStatus })
+      .eq('id', cyl.id)
+    if (updErr) { setScanError(updErr.message); return }
+
+    setScanMessage(`Cylinder ${cyl.label ?? cyl.id.slice(0,6)} → ${newStatus}`)
+  }
 
   return (
-    <div className="p-4">
-      {!selectedDiver ? (
-        <div>
-          <h2 className="text-xl font-bold mb-4">SELECT DIVER</h2>
-          <button 
-            className="mb-4 bg-blue-500 text-white p-2 rounded"
-            onClick={() => {/* 刷新功能 */}}
-          >
-            Refresh
-          </button>
-          
-          <div className="space-y-2">
-            {divers.map(diver => (
-              <div 
-                key={diver.id} 
-                className="p-3 border rounded cursor-pointer hover:bg-gray-100"
-                onClick={() => setSelectedDiver(diver)}
-              >
-                {diver.full_name}
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="container">
+      <h1>Scan Cylinders</h1>
+
+      {scanError && <p style={{color:'#c0392b'}}>{scanError}</p>}
+      {scanMessage && <p style={{color:'#2e7d32'}}>{scanMessage}</p>}
+
+      {!scanActive ? (
+        <button className="btn" onClick={startScan}>Start Camera</button>
       ) : (
-        <div>
-          <h2 className="text-xl font-bold mb-2">SELECTED DIVER</h2>
-          <h3 className="text-lg mb-4">{selectedDiver.full_name}</h3>
-          
-          <div className="space-y-4">
-            {['BCD', 'Regulator', 'Fin', 'Goggle'].map(type => (
-              <div key={type} className="border p-4 rounded">
-                <h4 className="font-semibold mb-2">{type}</h4>
-                
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {['Dirty', 'Faulty', 'Service'].map(status => (
-                    <button
-                      key={status}
-                      className={`px-3 py-1 rounded ${
-                        equipmentStatus[type].status === status 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-gray-200'
-                      }`}
-                      onClick={() => updateEquipmentStatus(type, 'status', status)}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-                
-                <textarea
-                  placeholder="Remark"
-                  className="w-full p-2 border rounded"
-                  value={equipmentStatus[type].remark}
-                  onChange={(e) => updateEquipmentStatus(type, 'remark', e.target.value)}
-                />
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-6 flex gap-3">
-            <button
-              className="bg-gray-300 px-4 py-2 rounded"
-              onClick={() => setSelectedDiver(null)}
-            >
-              Back
-            </button>
-            <button
-              className="bg-green-600 text-white px-4 py-2 rounded"
-              onClick={submitCheckIn}
-            >
-              Complete Check-In
-            </button>
-          </div>
-        </div>
+        <button className="btn" onClick={() => stopScan()}>Stop</button>
       )}
+
+      <video ref={videoRef} style={{ width:'100%', maxHeight:'40vh', marginTop:12, background:'#000' }} />
+
+      <div style={{ display:'flex', gap:8, marginTop:12 }}>
+        <input
+          placeholder="Enter code (e.g. CYL:099e37d2-4341-464c-8207-ee891c59b129)"
+          value={manualCode}
+          onChange={(e)=>setManualCode(e.target.value)}
+          style={{ flex:1 }}
+        />
+        <button className="btn" onClick={()=>handleScanCode(manualCode.trim())}>Submit</button>
+      </div>
     </div>
-  );
+  )
 }
