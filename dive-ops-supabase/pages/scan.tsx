@@ -1,148 +1,170 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { BrowserMultiFormatReader } from '@zxing/browser'
 
-export default function Scan(){
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [active, setActive] = useState(false);
-  const [detected, setDetected] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [manual, setManual] = useState<string>('');
-  const [lookup, setLookup] = useState<any>(null);
+type Cyl = { id:string; label?:string|null; status:string }
 
-  async function start(){
-    setError('');
-    setDetected('');
-    try{
-      // @ts-ignore
-      const has = 'BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats?.())?.includes('qr_code');
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if(videoRef.current){
-        (videoRef.current as any).srcObject = stream;
-        await videoRef.current.play();
-      }
-      setActive(true);
-      if(has){
-        // @ts-ignore
-        const detector = new BarcodeDetector({ formats: ['qr_code'] });
-        const scanLoop = async ()=>{
-          if(!videoRef.current) return;
-          try{
-            const detections = await detector.detect(videoRef.current);
-            if(detections && detections.length > 0){
-              const best = detections[0].rawValue || '';
-              if(best){
-                onDetected(best);
-                return;
+export default function ScanPage() {
+  const [scanActive, setScanActive] = useState(false)
+  const [scanError, setScanError] = useState<string>('')
+  const [scanMessage, setScanMessage] = useState<string>('')
+  const [manualCode, setManualCode] = useState<string>('')
+
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const rafIdRef = useRef<number | null>(null)
+  const zxingControlsRef = useRef<{ stop: () => void } | null>(null)
+  const lastCodeRef = useRef<string>('')
+
+  useEffect(() => {
+    return () => { stopScan(true) } // cleanup on unmount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function startScan() {
+    setScanError('')
+    setScanMessage('')
+
+    const el = videoRef.current
+    if (!el) { setScanError('Video element not ready'); return }
+
+    // iOS friendly video attributes
+    el.setAttribute('playsinline','true')
+    el.muted = true
+    el.autoplay = true
+
+    // Fast path: native BarcodeDetector (Chrome/Android)
+    if ('BarcodeDetector' in window) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
+        })
+        el.srcObject = stream
+        await el.play()
+
+        // @ts-ignore - BarcodeDetector exists at runtime in supported browsers
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+        setScanActive(true)
+
+        const loop = async () => {
+          try {
+            const codes = await detector.detect(el)
+            if (codes?.length) {
+              const code = codes[0].rawValue || ''
+              if (code && code !== lastCodeRef.current) {
+                lastCodeRef.current = code
+                await handleScanCode(code)
               }
             }
-          }catch(e){}
-          if(active) requestAnimationFrame(scanLoop);
-        };
-        requestAnimationFrame(scanLoop);
+          } catch { /* ignore frame errors */ }
+          if (scanActive) rafIdRef.current = requestAnimationFrame(loop)
+        }
+        rafIdRef.current = requestAnimationFrame(loop)
+        return
+      } catch (e:any) {
+        console.warn('BarcodeDetector failed, falling back to ZXing:', e?.message)
+        await stopScan(true) // clear any half-open resources, then fall through
       }
-    }catch(e:any){
-      setError(e.message || 'Camera error');
-      setActive(false);
+    }
+
+    // Fallback: ZXing (works on iOS Safari)
+    try {
+      const reader = new BrowserMultiFormatReader()
+      const devices = await BrowserMultiFormatReader.listVideoInputDevices()
+      if (!devices.length) { setScanError('No camera found'); return }
+      const deviceId = devices[0].deviceId
+
+      const controls = await reader.decodeFromVideoDevice(deviceId, el, async (result, err) => {
+        if (result) {
+          const text = result.getText()
+          if (text && text !== lastCodeRef.current) {
+            lastCodeRef.current = text
+            await handleScanCode(text)
+          }
+        }
+        // ignore transient decode errors
+      })
+
+      zxingControlsRef.current = controls
+      setScanActive(true)
+    } catch (e:any) {
+      setScanError(e?.message || 'Camera error')
     }
   }
 
-  function stop(){
-    if(videoRef.current && (videoRef.current as any).srcObject){
-      const tracks = ((videoRef.current as any).srcObject as MediaStream).getTracks();
-      tracks.forEach(t=>t.stop());
-      (videoRef.current as any).srcObject = null;
+  async function stopScan(keepLast=false) {
+    setScanActive(false)
+
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current)
+      rafIdRef.current = null
     }
-    setActive(false);
+    if (zxingControlsRef.current) {
+      try { zxingControlsRef.current.stop() } catch {}
+      zxingControlsRef.current = null
+    }
+    const el = videoRef.current
+    const stream = el?.srcObject as MediaStream | null
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop())
+      if (el) el.srcObject = null
+    }
+    if (!keepLast) lastCodeRef.current = ''
   }
 
-  async function onDetected(code:string){
-    setDetected(code);
-    // Try interpret: CYL:<uuid> or RIT:<uuid>
-    let type = null, id = null;
-       
-    if(code.startsWith('CYL:')){ type='cylinder'; id = code.slice(4); }
-    if(code.startsWith('RIT:')){ type='rental'; id = code.slice(4); }
-    if(!type){ setLookup({ error:'Unknown code format' }); return; }
+  async function handleScanCode(raw: string) {
+    setScanError('')
+    setScanMessage('')
 
-    if(type==='cylinder'){
-      // first try as UUID
-      let q = supabase.from('cylinders').select('*').eq('id', id).maybeSingle();
-      let { data, error } = await q;
-      if(!data){
-        // try index fallback (e.g., CYL:0)
-        const idx = parseInt(id,10);
-        if(!isNaN(idx)){
-          const { data: list } = await supabase.from('cylinders').select('*').order('created_at',{ascending:true});
-          if(list && list[idx]) data = list[idx];
-        }
-         // toggle status for cylinder
-      if(data){
-        const newStatus = data.status === 'available' ? 'out' : 'available';
-        const { error: updateError } = await supabase
-          .from('cylinders')
-          .update({ status: newStatus })
-          .eq('id', data.id);
-        if(!updateError){
-          data.status = newStatus;
-        }
-      }
-
-      }
-      setLookup({ type, data, error });
-    } else {
-      let { data, error } = await supabase.from('rental_items').select('*').eq('id', id).maybeSingle();
-      if(!data){
-        const idx = parseInt(id,10);
-        if(!isNaN(idx)){
-          const { data: list } = await supabase.from('rental_items').select('*').order('created_at',{ascending:true});
-          if(list && list[idx]) data = list[idx];
-        }
-      }
-      setLookup({ type, data, error });
+    // Expect "CYL:<uuid>"
+    const [prefix, id] = raw.trim().split(':')
+    if (prefix !== 'CYL' || !id) {
+      setScanError('Invalid code. Use CYL:<uuid>')
+      return
     }
-    stop();
-  }
 
-  useEffect(()=>()=>stop(),[])
+    // Lookup cylinder
+    const { data: cyl, error: getErr } = await supabase
+      .from('cylinders')
+      .select('id,label,status')
+      .eq('id', id)
+      .maybeSingle<Cyl>()
+    if (getErr) { setScanError(getErr.message); return }
+    if (!cyl) { setScanError('Cylinder not found'); return }
+
+    // Toggle status
+    const newStatus = cyl.status === 'available' ? 'out' : 'available'
+    const { error: updErr } = await supabase
+      .from('cylinders')
+      .update({ status: newStatus })
+      .eq('id', cyl.id)
+    if (updErr) { setScanError(updErr.message); return }
+
+    setScanMessage(`Cylinder ${cyl.label ?? cyl.id.slice(0,6)} → ${newStatus}`)
+  }
 
   return (
     <div className="container">
-      <div className="panel" style={{maxWidth:820, margin:'0 auto'}}>
-        <h2>QR Scanner</h2>
-        <p className="small">HTTPS required. Code formats: <code>CYL:&lt;uuid or index&gt;</code>, <code>RIT:&lt;uuid or index&gt;</code>.</p>
-        <div style={{display:'flex', gap:12, margin:'12px 0'}}>
-          {!active ? <button className="btn" onClick={start}>Start Camera</button> :
-                      <button className="btn red" onClick={stop}>Stop</button>}
-          <a className="btn" href="/">Back</a>
-        </div>
+      <h1>Scan Cylinders</h1>
 
-        {error && <div className="small" style={{color:'#b91c1c'}}>Error: {error}</div>}
+      {scanError && <p style={{color:'#c0392b'}}>{scanError}</p>}
+      {scanMessage && <p style={{color:'#2e7d32'}}>{scanMessage}</p>}
 
-        <div style={{position:'relative', background:'#000', borderRadius:12, overflow:'hidden'}}>
-          <video ref={videoRef} playsInline muted style={{width:'100%'}} />
-        </div>
+      {!scanActive ? (
+        <button className="btn" onClick={startScan}>Start Camera</button>
+      ) : (
+        <button className="btn" onClick={() => stopScan()}>Stop</button>
+      )}
 
-        <div style={{border:'1px solid #e5e7eb', borderRadius:12, padding:12, marginTop:12}}>
-          <div className="small" style={{marginBottom:6}}>Manual entry (fallback)</div>
-          <div style={{display:'flex', gap:8}}>
-            <input className="input" placeholder="e.g., CYL:0 or RIT:0 or CYL:<uuid>" value={manual} onChange={e=>setManual(e.target.value)} />
-            <button className="btn primary" onClick={()=>onDetected(manual)}>Submit</button>
-          </div>
-        </div>
+      <video ref={videoRef} style={{ width:'100%', maxHeight:'40vh', marginTop:12, background:'#000' }} />
 
-        <div style={{marginTop:12}}>
-          <div className="small">Detected code</div>
-          <div className="card"><div>{detected || '—'}</div></div>
-        </div>
-
-        {lookup && (
-          <div className="panel" style={{marginTop:12}}>
-            {!lookup.data && <div className="small">Not found.</div>}
-            {lookup.data && (
-              <pre style={{whiteSpace:'pre-wrap', fontSize:12, background:'#f3f4f6', padding:12, borderRadius:12}}>{JSON.stringify(lookup.data, null, 2)}</pre>
-            )}
-          </div>
-        )}
+      <div style={{ display:'flex', gap:8, marginTop:12 }}>
+        <input
+          placeholder="Enter code (e.g. CYL:099e37d2-4341-464c-8207-ee891c59b129)"
+          value={manualCode}
+          onChange={(e)=>setManualCode(e.target.value)}
+          style={{ flex:1 }}
+        />
+        <button className="btn" onClick={()=>handleScanCode(manualCode.trim())}>Submit</button>
       </div>
     </div>
   )
