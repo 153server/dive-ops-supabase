@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import Layout from '../components/Layout';
+import DashboardLayout from '../components/DashboardLayout';
 
 type EquipmentStatus = {
   status: string;
@@ -86,8 +86,7 @@ const submitCheckIn = async () => {
     }
   };
 
-  return (
-    <Layout>
+  return <DashboardLayout>...</DashboardLayout>
       <div className="p-4 max-w-3xl mx-auto">
         {!selectedDiver ? (
           <div>
