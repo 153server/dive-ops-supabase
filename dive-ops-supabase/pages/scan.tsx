@@ -16,22 +16,37 @@ export default function EquipmentScanner() {
     BCD: { status: '', remark: '' },
     Regulator: { status: '', remark: '' },
     Fin: { status: '', remark: '' },
-    Goggle: { status: '', remark: '' }
+    Mask: { status: '', remark: '' }
   });
 
-  // 加载潜水员列表
-  useEffect(() => {
-    const fetchDivers = async () => {
-      const { data, error } = await supabase
-        .from('divers')
-        .select('*')
-        .order('full_name', { ascending: true });
-      
-      if (!error && data) setDivers(data);
-    };
-    fetchDivers();
-  }, []);
+// 更新 useEffect 钩子 - 移除 Supabase 调用
+useEffect(() => {
+  // 模拟潜水员数据
+  const mockDivers = [
+    { id: '1', full_name: 'Chandra Khatulasem' },
+    { id: '2', full_name: 'Quek Long Shun' },
+    { id: '3', full_name: 'Ali Bin Ahmad' },
+    { id: '4', full_name: 'Kumar Kanivel' },
+    { id: '5', full_name: 'Josline Ong' }
+  ];
+  setDivers(mockDivers);
+}, []);
 
+// 更新 submitCheckIn 函数 - 移除 Supabase 调用
+const submitCheckIn = async () => {
+  if (!selectedDiver) return;
+  
+  // 模拟提交成功
+  alert('设备检查完成 (模拟模式)!');
+  setSelectedDiver(null);
+  setEquipmentStatus({
+    BCD: { status: '', remark: '' },
+    Regulator: { status: '', remark: '' },
+    Fin: { status: '', remark: '' },
+    Mask: { status: '', remark: '' }
+  });
+  router.push('/');
+};
   // 更新设备状态
   const updateEquipmentStatus = (type: string, field: keyof EquipmentStatus, value: string) => {
     setEquipmentStatus(prev => ({
@@ -65,7 +80,7 @@ export default function EquipmentScanner() {
         BCD: { status: '', remark: '' },
         Regulator: { status: '', remark: '' },
         Fin: { status: '', remark: '' },
-        Goggle: { status: '', remark: '' }
+        Mask: { status: '', remark: '' }
       });
       // 返回仪表盘
       router.push('/');
