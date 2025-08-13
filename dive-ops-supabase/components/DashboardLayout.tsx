@@ -68,7 +68,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       1
                     </span>
-                    Equipment Scan
+                     Equipment Scan
                   </Link>
                 </li>
                 <li>
@@ -83,7 +83,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       2
                     </span>
-                    Trip Management
+                     Trip Management
                   </Link>
                 </li>
                 <li>
@@ -98,7 +98,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       3
                     </span>
-                    Cylinder Filling
+                     Cylinder Filling
                   </Link>
                 </li>
               </ul>
@@ -121,7 +121,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       4
                     </span>
-                    Status Dashboard
+                     Status Dashboard
                   </Link>
                 </li>
                 <li>
@@ -136,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       5
                     </span>
-                    Dive Reports
+                     Dive Reports
                   </Link>
                 </li>
               </ul>
@@ -159,7 +159,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       6
                     </span>
-                    Billing Management
+                     Billing Management
                   </Link>
                 </li>
                 <li>
@@ -174,7 +174,7 @@ export default function Layout({ children }: LayoutProps) {
                     <span className="mr-3 bg-blue-100 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center text-xs">
                       7
                     </span>
-                    System Settings
+                     System Settings
                   </Link>
                 </li>
               </ul>
