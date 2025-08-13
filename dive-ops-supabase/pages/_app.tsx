@@ -18,8 +18,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       <div className="container">
         <div className="header">
           <div>
-            <h1>Dive Centre Ops — Rental + QR</h1>
-            <div className="small">Supabase-connected (Phase 1)</div>
+            <h1>Dive Centre Ops 
           </div>
           <div>
             {session ? (
