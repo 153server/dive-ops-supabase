@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import DashboardLayout from '../components/DashboardLayout.tsx';
+import DashboardLayout from '../components/DashboardLayout';
 
 type EquipmentStatus = {
   status: string;
