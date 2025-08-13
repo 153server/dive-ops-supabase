@@ -29,3 +29,14 @@
     "node_modules"
   ]
 }
+{
+  "compilerOptions": {
+    // ...其他配置
+    "baseUrl": ".",
+    "paths": {
+      "@/lib/*": ["lib/*"],
+      "@/components/*": ["components/*"]
+    }
+  },
+  // ...其他配置
+}
