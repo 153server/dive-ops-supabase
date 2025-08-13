@@ -33,7 +33,7 @@ export default function EquipmentScanner() {
       { id: '1', full_name: 'Pipette Chan' },
       { id: '2', full_name: 'Quek Long Shun' },
       { id: '3', full_name: 'Bridon Pang' },
-      { id: '4', full_name: 'Jian Chee Lee' },
+      { id: '4', full_name: 'Lee Jian Chee' },
       { id: '5', full_name: 'Kathy Wong' }
     ];
     setDivers(mockDivers);
@@ -113,10 +113,10 @@ export default function EquipmentScanner() {
                     onClick={() => setSelectedDiver(diver)}
                   >
                     <div className="p-5">
-                      <div className="bg-gray-100 rounded-xl w-14 h-14 flex items-center justify-center mb-3 text-gray-500 font-bold">
+                      <div className="bg-gray-100 rounded-xl w-14 h-14 flex items-center justify-center mb-3 text-gray-500 font-bold mx-auto">
                         D
                       </div>
-                      <div>
+                      <div className="text-center">
                         <h3 className="text-lg font-semibold text-gray-800">{diver.full_name}</h3>
                         <p className="text-sm text-gray-500">
                           Last checked: {new Date().toLocaleDateString()}
@@ -136,15 +136,15 @@ export default function EquipmentScanner() {
                 >
                   ← Back to divers
                 </button>
-                <h2 className="text-2xl font-bold text-gray-800">Equipment Check</h2>
+                <h2 className="text-2xl font-bold text-gray-800 text-center">Equipment Check</h2>
               </div>
               
-              <div className="bg-blue-50 text-gray-800 rounded-xl shadow p-6 mb-8">
-                <div className="flex items-center">
+              <div className="bg-blue-50 text-gray-800 rounded-xl shadow p-6 mb-8 max-w-lg mx-auto">
+                <div className="flex items-center justify-center">
                   <div className="bg-gray-200 rounded-xl w-14 h-14 flex items-center justify-center mr-4 font-bold">
                     D
                   </div>
-                  <div>
+                  <div className="text-center">
                     <h3 className="text-xl font-semibold">{selectedDiver.full_name}</h3>
                     <p className="text-gray-600">
                       ID: {selectedDiver.id.slice(0, 8)}
@@ -153,51 +153,54 @@ export default function EquipmentScanner() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(equipmentStatus).map(([type, status]) => (
-                  <div key={type} className="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
-                    <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                      <h4 className="font-bold text-lg text-gray-800">
-                        {type}
-                      </h4>
-                    </div>
-                    
-                    <div className="p-5">
-                      <div className="mb-4">
-                        <h5 className="text-sm font-medium text-gray-700 mb-2">Condition</h5>
-                        <div className="flex flex-wrap gap-2">
-                          {['Good', 'Dirty', 'Faulty', 'Service'].map(option => (
-                            <button
-                              key={option}
-                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
-                                status.status === option 
-                                  ? `${statusColors[option]} font-bold`
-                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              }`}
-                              onClick={() => updateEquipmentStatus(type, 'status', option)}
-                            >
-                              {option}
-                            </button>
-                          ))}
-                        </div>
+              {/* Centered equipment grid */}
+              <div className="flex justify-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                  {Object.entries(equipmentStatus).map(([type, status]) => (
+                    <div key={type} className="bg-white rounded-xl shadow overflow-hidden border border-gray-200 mx-auto w-full max-w-sm">
+                      <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                        <h4 className="font-bold text-lg text-gray-800 text-center">
+                          {type}
+                        </h4>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Remarks</label>
-                        <textarea
-                          placeholder="Add notes about this equipment..."
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm transition"
-                          rows={2}
-                          value={status.remark}
-                          onChange={(e) => updateEquipmentStatus(type, 'remark', e.target.value)}
-                        />
+                      <div className="p-5">
+                        <div className="mb-4">
+                          <h5 className="text-sm font-medium text-gray-700 mb-2 text-center">Condition</h5>
+                          <div className="flex justify-center flex-wrap gap-2">
+                            {['Good', 'Dirty', 'Faulty', 'Service'].map(option => (
+                              <button
+                                key={option}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
+                                  status.status === option 
+                                    ? `${statusColors[option]} font-bold`
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                                onClick={() => updateEquipmentStatus(type, 'status', option)}
+                              >
+                                {option}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2 text-center">Remarks</label>
+                          <textarea
+                            placeholder="Add notes about this equipment..."
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-300 focus:border-blue-400 text-sm transition"
+                            rows={2}
+                            value={status.remark}
+                            onChange={(e) => updateEquipmentStatus(type, 'remark', e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
               
-              <div className="mt-10 bg-gray-50 rounded-xl p-6 border border-gray-200">
+              <div className="mt-10 bg-gray-50 rounded-xl p-6 border border-gray-200 max-w-lg mx-auto">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     className="flex-1 bg-white text-gray-700 border border-gray-300 px-4 py-3 rounded-xl text-lg hover:bg-gray-50 transition font-medium"
@@ -209,7 +212,7 @@ export default function EquipmentScanner() {
                     className="flex-1 bg-blue-600 text-white px-4 py-3 rounded-xl text-lg hover:bg-blue-700 transition font-medium shadow"
                     onClick={submitCheckIn}
                   >
-                    Complete Equipment Check
+                    Complete Check
                   </button>
                 </div>
               </div>
