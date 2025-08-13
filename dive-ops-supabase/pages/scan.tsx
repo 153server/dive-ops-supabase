@@ -7,6 +7,10 @@ type EquipmentStatus = {
   remark: string;
 };
 
+function ScanPage() {
+  // Add this state declaration
+  const[successMessage,setSuccessMessage]=useState<string | null>(null);
+  
 export default function EquipmentScanner() {
   const router = useRouter();
   const [divers, setDivers] = useState<any[]>([]);
@@ -38,6 +42,11 @@ const submitCheckIn = async () => {
   // 模拟提交成功
   console.log('Check-in submitted for:', selectedDiver);
   setSuccessMessage('Check-in successful!');
+  {successMessage && (
+  <div className="bg-green-100 text-green-800 p-4 rounded-md">
+    {successMessage}
+  </div>
+)}
   setSelectedDiver(null);
   setEquipmentStatus({});
     BCD: { status: '', remark: '' },
