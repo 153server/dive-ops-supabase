@@ -26,7 +26,6 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center space-x-3">
             <div className="bg-white p-1 rounded-md shadow">
               <div className="bg-gradient-to-br from-blue-600 to-blue-800 w-10 h-10 rounded flex items-center justify-center text-white font-bold">
-                M
               </div>
             </div>
             <h1 className="text-xl font-bold tracking-tight">MOBY-TEK DIVE CENTER</h1>
