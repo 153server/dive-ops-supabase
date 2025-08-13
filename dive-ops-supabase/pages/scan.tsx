@@ -30,11 +30,11 @@ export default function EquipmentScanner() {
   useEffect(() => {
     // Mock diver data
     const mockDivers: Diver[] = [
-      { id: '1', full_name: 'Chandra Khatulasem' },
+      { id: '1', full_name: 'Pipette Chan' },
       { id: '2', full_name: 'Quek Long Shun' },
-      { id: '3', full_name: 'Ali Bin Ahmad' },
-      { id: '4', full_name: 'Kumar Kanivel' },
-      { id: '5', full_name: 'Josline Ong' }
+      { id: '3', full_name: 'Bridon Pang' },
+      { id: '4', full_name: 'Jian Chee Lee' },
+      { id: '5', full_name: 'Kathy Wong' }
     ];
     setDivers(mockDivers);
   }, []);
