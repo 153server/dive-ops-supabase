@@ -1,0 +1,46 @@
+import { supabase } from '@/lib/supabase';
+
+const seedData = async () => {
+  console.log('开始初始化数据...');
+  
+  // 添加潜水员
+  const { data: divers, error: diverError } = await supabase
+    .from('divers')
+    .insert([
+      { full_name: 'Chandra Khatulasem' },
+      { full_name: 'Quek Long Shun' },
+      { full_name: 'Ali Bin Ahmad' },
+      { full_name: 'Kumar Kanivel' },
+      { full_name: 'Josline Ong' }
+    ])
+    .select();
+  
+  if (diverError) {
+    console.error('添加潜水员数据失败:', diverError);
+    return;
+  }
+
+  console.log('成功添加潜水员:', divers);
+
+  // 添加行程
+  const { data: trips, error: tripError } = await supabase
+    .from('trips')
+    .insert([
+      { name: 'Trip A', date: '2025-08-15', time: '08:00:00' },
+      { name: 'Trip B', date: '2025-08-17', time: '09:30:00' },
+      { name: 'Trip C', date: '2025-08-20', time: '10:00:00' },
+      { name: 'Trip D', date: '2025-08-25', time: '08:00:00' }
+    ])
+    .select();
+  
+  if (tripError) {
+    console.error('添加行程数据失败:', tripError);
+    return;
+  }
+
+  console.log('成功添加行程:', trips);
+
+  console.log('数据初始化完成！');
+};
+
+seedData().catch(console.error);
