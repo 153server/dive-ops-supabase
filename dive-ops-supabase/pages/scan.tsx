@@ -1,171 +1,195 @@
-import { useEffect, useRef, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import { BrowserMultiFormatReader } from '@zxing/browser'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { supabase } from '@/lib/supabase';
+import Layout from '@/components/Layout';
 
-type Cyl = { id:string; label?:string|null; status:string }
+type EquipmentStatus = {
+  status: string;
+  remark: string;
+};
 
-export default function ScanPage() {
-  const [scanActive, setScanActive] = useState(false)
-  const [scanError, setScanError] = useState<string>('')
-  const [scanMessage, setScanMessage] = useState<string>('')
-  const [manualCode, setManualCode] = useState<string>('')
+export default function EquipmentScanner() {
+  const router = useRouter();
+  const [divers, setDivers] = useState<any[]>([]);
+  const [selectedDiver, setSelectedDiver] = useState<any>(null);
+  const [equipmentStatus, setEquipmentStatus] = useState<Record<string, EquipmentStatus>>({
+    BCD: { status: '', remark: '' },
+    Regulator: { status: '', remark: '' },
+    Fin: { status: '', remark: '' },
+    Goggle: { status: '', remark: '' }
+  });
 
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const rafIdRef = useRef<number | null>(null)
-  const zxingControlsRef = useRef<{ stop: () => void } | null>(null)
-  const lastCodeRef = useRef<string>('')
-
+  // 加载潜水员列表
   useEffect(() => {
-    return () => { stopScan(true) } // cleanup on unmount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const fetchDivers = async () => {
+      const { data, error } = await supabase
+        .from('divers')
+        .select('*')
+        .order('full_name', { ascending: true });
+      
+      if (!error && data) setDivers(data);
+    };
+    fetchDivers();
+  }, []);
 
-  async function startScan() {
-    setScanError('')
-    setScanMessage('')
-
-    const el = videoRef.current
-    if (!el) { setScanError('Video element not ready'); return }
-
-    // iOS friendly video attributes
-    el.setAttribute('playsinline','true')
-    el.muted = true
-    el.autoplay = true
-
-    // Fast path: native BarcodeDetector (Chrome/Android)
-    if ('BarcodeDetector' in window) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }
-        })
-        el.srcObject = stream
-        await el.play()
-
-        // @ts-ignore - BarcodeDetector exists at runtime in supported browsers
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
-        setScanActive(true)
-
-        const loop = async () => {
-          try {
-            const codes = await detector.detect(el)
-            if (codes?.length) {
-              const code = codes[0].rawValue || ''
-              if (code && code !== lastCodeRef.current) {
-                lastCodeRef.current = code
-                await handleScanCode(code)
-              }
-            }
-          } catch { /* ignore frame errors */ }
-          if (scanActive) rafIdRef.current = requestAnimationFrame(loop)
-        }
-        rafIdRef.current = requestAnimationFrame(loop)
-        return
-      } catch (e:any) {
-        console.warn('BarcodeDetector failed, falling back to ZXing:', e?.message)
-        await stopScan(true) // clear any half-open resources, then fall through
+  // 更新设备状态
+  const updateEquipmentStatus = (type: string, field: keyof EquipmentStatus, value: string) => {
+    setEquipmentStatus(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: value
       }
+    }));
+  };
+
+  // 提交检查结果
+  const submitCheckIn = async () => {
+    if (!selectedDiver) return;
+
+    const { error } = await supabase
+      .from('equipment_checkins')
+      .insert({
+        diver_id: selectedDiver.id,
+        equipment_data: equipmentStatus
+      });
+    
+    if (error) {
+      console.error('保存设备检查记录失败:', error);
+      alert('保存失败，请重试');
+    } else {
+      alert('设备检查完成！');
+      // 重置状态
+      setSelectedDiver(null);
+      setEquipmentStatus({
+        BCD: { status: '', remark: '' },
+        Regulator: { status: '', remark: '' },
+        Fin: { status: '', remark: '' },
+        Goggle: { status: '', remark: '' }
+      });
+      // 返回仪表盘
+      router.push('/');
     }
-
-    // Fallback: ZXing (works on iOS Safari)
-    try {
-      const reader = new BrowserMultiFormatReader()
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices()
-      if (!devices.length) { setScanError('No camera found'); return }
-      const deviceId = devices[0].deviceId
-
-      const controls = await reader.decodeFromVideoDevice(deviceId, el, async (result, err) => {
-        if (result) {
-          const text = result.getText()
-          if (text && text !== lastCodeRef.current) {
-            lastCodeRef.current = text
-            await handleScanCode(text)
-          }
-        }
-        // ignore transient decode errors
-      })
-
-      zxingControlsRef.current = controls
-      setScanActive(true)
-    } catch (e:any) {
-      setScanError(e?.message || 'Camera error')
-    }
-  }
-
-  async function stopScan(keepLast=false) {
-    setScanActive(false)
-
-    if (rafIdRef.current) {
-      cancelAnimationFrame(rafIdRef.current)
-      rafIdRef.current = null
-    }
-    if (zxingControlsRef.current) {
-      try { zxingControlsRef.current.stop() } catch {}
-      zxingControlsRef.current = null
-    }
-    const el = videoRef.current
-    const stream = el?.srcObject as MediaStream | null
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop())
-      if (el) el.srcObject = null
-    }
-    if (!keepLast) lastCodeRef.current = ''
-  }
-
-  async function handleScanCode(raw: string) {
-    setScanError('')
-    setScanMessage('')
-
-    // Expect "CYL:<uuid>"
-    const [prefix, id] = raw.trim().split(':')
-    if (prefix !== 'CYL' || !id) {
-      setScanError('Invalid code. Use CYL:<uuid>')
-      return
-    }
-
-    // Lookup cylinder
-    const { data: cyl, error: getErr } = await supabase
-      .from('cylinders')
-      .select('id,label,status')
-      .eq('id', id)
-      .maybeSingle<Cyl>()
-    if (getErr) { setScanError(getErr.message); return }
-    if (!cyl) { setScanError('Cylinder not found'); return }
-
-    // Toggle status
-    const newStatus = cyl.status === 'available' ? 'out' : 'available'
-    const { error: updErr } = await supabase
-      .from('cylinders')
-      .update({ status: newStatus })
-      .eq('id', cyl.id)
-    if (updErr) { setScanError(updErr.message); return }
-
-    setScanMessage(`Cylinder ${cyl.label ?? cyl.id.slice(0,6)} → ${newStatus}`)
-  }
+  };
 
   return (
-    <div className="container">
-      <h1>Scan Cylinders</h1>
+    <Layout>
+      <div className="p-4 max-w-3xl mx-auto">
+        {!selectedDiver ? (
+          <div>
+            <h2 className="text-2xl font-bold mb-6 text-blue-800">选择潜水员</h2>
+            <button 
+              className="mb-4 bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition flex items-center"
+              onClick={() => window.location.reload()}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+              </svg>
+              刷新列表
+            </button>
+            
+            <div className="space-y-3">
+              {divers.map(diver => (
+                <div 
+                  key={diver.id} 
+                  className="p-4 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50 transition flex items-center"
+                  onClick={() => setSelectedDiver(diver)}
+                >
+                  <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-800">{diver.full_name}</h3>
+                    <p className="text-sm text-gray-500">上次检查: {new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center mb-6">
+              <button
+                className="bg-gray-300 px-4 py-2 rounded-lg mr-4 hover:bg-gray-400 transition flex items-center"
+                onClick={() => setSelectedDiver(null)}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                返回
+              </button>
+              <h2 className="text-2xl font-bold text-blue-800">设备检查</h2>
+            </div>
+            
+            <div className="bg-white p-6 rounded-xl shadow-md mb-6 flex items-center">
+              <div className="bg-gray-200 border-2 border-dashed rounded-xl w-16 h-16 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-xl font-semibold">{selectedDiver.full_name}</h3>
+                <p className="text-gray-500">ID: {selectedDiver.id.slice(0, 8)}</p>
+              </div>
+            </div>
 
-      {scanError && <p style={{color:'#c0392b'}}>{scanError}</p>}
-      {scanMessage && <p style={{color:'#2e7d32'}}>{scanMessage}</p>}
-
-      {!scanActive ? (
-        <button className="btn" onClick={startScan}>Start Camera</button>
-      ) : (
-        <button className="btn" onClick={() => stopScan()}>Stop</button>
-      )}
-
-      <video ref={videoRef} style={{ width:'100%', maxHeight:'40vh', marginTop:12, background:'#000' }} />
-
-      <div style={{ display:'flex', gap:8, marginTop:12 }}>
-        <input
-          placeholder="Enter code (e.g. CYL:099e37d2-4341-464c-8207-ee891c59b129)"
-          value={manualCode}
-          onChange={(e)=>setManualCode(e.target.value)}
-          style={{ flex:1 }}
-        />
-        <button className="btn" onClick={()=>handleScanCode(manualCode.trim())}>Submit</button>
+            <div className="space-y-6">
+              {Object.entries(equipmentStatus).map(([type, status]) => (
+                <div key={type} className="bg-white p-6 rounded-xl shadow-md">
+                  <h4 className="font-bold text-lg mb-4 text-blue-700">{type}</h4>
+                  
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {['Dirty', 'Faulty', 'Service'].map(option => (
+                      <button
+                        key={option}
+                        className={`px-4 py-2 rounded-lg transition ${
+                          status.status === option 
+                            ? 'bg-blue-600 text-white shadow-md' 
+                            : 'bg-gray-200 hover:bg-gray-300'
+                        }`}
+                        onClick={() => updateEquipmentStatus(type, 'status', option)}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">备注</label>
+                    <textarea
+                      placeholder="添加备注..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      rows={3}
+                      value={status.remark}
+                      onChange={(e) => updateEquipmentStatus(type, 'remark', e.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-8 flex gap-4">
+              <button
+                className="flex-1 bg-gray-300 px-4 py-3 rounded-lg text-lg hover:bg-gray-400 transition flex items-center justify-center"
+                onClick={() => setSelectedDiver(null)}
+              >
+                取消
+              </button>
+              <button
+                className="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg text-lg hover:bg-green-700 transition shadow-md flex items-center justify-center"
+                onClick={submitCheckIn}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                完成检查
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
-  )
+    </Layout>
+  );
 }
