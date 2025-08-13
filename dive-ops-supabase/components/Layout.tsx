@@ -1,19 +1,19 @@
 // components/Layout.tsx
 import { ReactNode } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/router';//
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
-}
+  //Initialize router
+  const router=useRouter();//
   
   const signOut = () => {
     // 模拟退出功能
-    router.push('/login');
+    router.push('/login');Now router is defined
   };
 
   const isActive = (pathname: string) => {
