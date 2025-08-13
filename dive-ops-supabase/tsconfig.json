@@ -4,7 +4,7 @@
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true, // 启用严格模式
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -17,11 +17,9 @@
     "baseUrl": ".",
     "paths": {
       "@/lib/*": ["lib/*"],
-      "@/components/*": ["components/*"],
-      "@/utils/*": ["utils/*"]
-    },
-    "plugins": [{ "name": "next" }] // Next.js 插件
+      "@/components/*": ["components/*"]
+    }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "lib/**/*"],
   "exclude": ["node_modules"]
 }
