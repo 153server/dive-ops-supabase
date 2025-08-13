@@ -7,14 +7,16 @@ type EquipmentStatus = {
   remark: string;
 };
 
-function ScanPage() {
-  // Add this state declaration
-  const[successMessage,setSuccessMessage]=useState<string | null>(null);
-  
+type Diver = {
+  id: string;
+  full_name: string;
+};
+
 export default function EquipmentScanner() {
   const router = useRouter();
-  const [divers, setDivers] = useState<any[]>([]);
-  const [selectedDiver, setSelectedDiver] = useState<any>(null);
+  const [divers, setDivers] = useState<Diver[]>([]);
+  const [selectedDiver, setSelectedDiver] = useState<Diver | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [equipmentStatus, setEquipmentStatus] = useState<Record<string, EquipmentStatus>>({
     BCD: { status: '', remark: '' },
     Regulator: { status: '', remark: '' },
@@ -22,41 +24,18 @@ export default function EquipmentScanner() {
     Mask: { status: '', remark: '' }
   });
 
-// 更新 useEffect 钩子 - 移除 Supabase 调用
-useEffect(() => {
-  // 模拟潜水员数据
-  const mockDivers = [
-    { id: '1', full_name: 'Chandra Khatulasem' },
-    { id: '2', full_name: 'Quek Long Shun' },
-    { id: '3', full_name: 'Ali Bin Ahmad' },
-    { id: '4', full_name: 'Kumar Kanivel' },
-    { id: '5', full_name: 'Josline Ong' }
-  ];
-  setDivers(mockDivers);
-}, []);
+  useEffect(() => {
+    // Mock diver data
+    const mockDivers: Diver[] = [
+      { id: '1', full_name: 'Chandra Khatulasem' },
+      { id: '2', full_name: 'Quek Long Shun' },
+      { id: '3', full_name: 'Ali Bin Ahmad' },
+      { id: '4', full_name: 'Kumar Kanivel' },
+      { id: '5', full_name: 'Josline Ong' }
+    ];
+    setDivers(mockDivers);
+  }, []);
 
-// 更新 submitCheckIn 函数 - 移除 Supabase 调用
-const submitCheckIn = async () => {
-  if (!selectedDiver) return;
-  
-  // 模拟提交成功
-  console.log('Check-in submitted for:', selectedDiver);
-  setSuccessMessage('Check-in successful!');
-  {successMessage && (
-  <div className="bg-green-100 text-green-800 p-4 rounded-md">
-    {successMessage}
-  </div>
-)}
-  setSelectedDiver(null);
-  setEquipmentStatus({
-    BCD: { status: '', remark: '' },
-    Regulator: { status: '', remark: '' },
-    Fin: { status: '', remark: '' },
-    Mask: { status: '', remark: '' }
-  });
-  router.push('/');
-};
-  // 更新设备状态
   const updateEquipmentStatus = (type: string, field: keyof EquipmentStatus, value: string) => {
     setEquipmentStatus(prev => ({
       ...prev,
@@ -67,37 +46,35 @@ const submitCheckIn = async () => {
     }));
   };
 
-  // 提交检查结果
   const submitCheckIn = async () => {
     if (!selectedDiver) return;
-
-    const { error } = await supabase
-      .from('equipment_checkins')
-      .insert({
-        diver_id: selectedDiver.id,
-        equipment_data: equipmentStatus
-      });
     
-    if (error) {
-      console.error('保存设备检查记录失败:', error);
-      alert('保存失败，请重试');
-    } else {
-      alert('设备检查完成！');
-      // 重置状态
-      setSelectedDiver(null);
-      setEquipmentStatus({
-        BCD: { status: '', remark: '' },
-        Regulator: { status: '', remark: '' },
-        Fin: { status: '', remark: '' },
-        Mask: { status: '', remark: '' }
-      });
-      // 返回仪表盘
-      router.push('/');
-    }
+    // Mock submission
+    console.log('Check-in submitted for:', selectedDiver);
+    setSuccessMessage('Check-in successful!');
+    
+    // Reset state
+    setSelectedDiver(null);
+    setEquipmentStatus({
+      BCD: { status: '', remark: '' },
+      Regulator: { status: '', remark: '' },
+      Fin: { status: '', remark: '' },
+      Mask: { status: '', remark: '' }
+    });
+    
+    // Redirect to home
+    router.push('/');
   };
 
-  return <DashboardLayout>...</DashboardLayout>
+  return (
+    <DashboardLayout>
       <div className="p-4 max-w-3xl mx-auto">
+        {successMessage && (
+          <div className="bg-green-100 text-green-800 p-4 rounded-md mb-6">
+            {successMessage}
+          </div>
+        )}
+
         {!selectedDiver ? (
           <div>
             <h2 className="text-2xl font-bold mb-6 text-blue-800">选择潜水员</h2>
@@ -213,6 +190,6 @@ const submitCheckIn = async () => {
           </div>
         )}
       </div>
-    </Layout>
+    </DashboardLayout>
   );
 }
