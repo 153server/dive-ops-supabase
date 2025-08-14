@@ -1,23 +1,19 @@
 import type { AppProps } from 'next/app';
 import { useEffect } from 'react';
 
-// Minimal global styles
 const globalStyles = `
   :root {
     --primary: #3b82f6;
     --primary-dark: #2563eb;
-    --secondary: #10b981;
-    --danger: #ef4444;
     --background: #f8fafc;
     --text: #1e293b;
     --card: #ffffff;
-    --border: #e2e8f0;
   }
 
   * {
-    box-sizing: border-box;
     margin: 0;
     padding: 0;
+    box-sizing: border-box;
   }
 
   body {
@@ -35,22 +31,6 @@ const globalStyles = `
     padding: 0 20px;
   }
 
-  .btn {
-    display: inline-block;
-    padding: 10px 20px;
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .btn:hover {
-    background-color: var(--primary-dark);
-  }
-
   .card {
     background-color: var(--card);
     border-radius: 8px;
@@ -60,21 +40,16 @@ const globalStyles = `
   }
 `;
 
-function MyApp({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
-    // Inject global styles
-    const styleElement = document.createElement('style');
-    styleElement.textContent = globalStyles;
-    document.head.appendChild(styleElement);
-
+    const style = document.createElement('style');
+    style.textContent = globalStyles;
+    document.head.appendChild(style);
+    
     return () => {
-      if (document.head.contains(styleElement)) {
-        document.head.removeChild(styleElement);
-      }
+      document.head.removeChild(style);
     };
   }, []);
 
   return <Component {...pageProps} />;
 }
-
-export default MyApp;
