@@ -2,16 +2,16 @@ export default function Home() {
   return (
     <div className="container">
       <div className="card">
-        <h1>Welcome to Dive Ops</h1>
-        <p>Dive management system</p>
+        <h1>Dive Operations System</h1>
+        <p>Manage dive logs, equipment, and safety procedures</p>
         
-        <div style={{ marginTop: '20px' }}>
-          <h2>Features:</h2>
-          <ul>
+        <div style={{ marginTop: '24px' }}>
+          <h2>Key Features</h2>
+          <ul style={{ marginLeft: '20px', marginTop: '10px' }}>
             <li>Dive log management</li>
-            <li>Equipment tracking</li>
+            <li>Equipment inventory tracking</li>
             <li>Dive site database</li>
-            <li>Safety planning</li>
+            <li>Safety planning tools</li>
           </ul>
         </div>
       </div>
