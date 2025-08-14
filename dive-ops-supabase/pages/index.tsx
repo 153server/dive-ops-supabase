@@ -12,6 +12,7 @@ export default function Home() {
             <li>Equipment inventory tracking</li>
             <li>Dive site database</li>
             <li>Safety planning tools</li>
+            <li>Team management</li>
           </ul>
         </div>
       </div>
